@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from datetime import datetime
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -20,7 +20,6 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
-        # Users table
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,7 +28,6 @@ def init_db():
                 created_at TEXT
             )
         ''')
-        # Tasks table with user_id
         conn.execute('''
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +49,10 @@ def get_current_user_id():
 @app.route('/')
 def hello():
     return {"message": "Hello, Task Manager is running!"}
+
+@app.route('/app')
+def frontend():
+    return render_template('index.html')
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -99,7 +101,6 @@ def login():
     if not user or not check_password_hash(user['password_hash'], password):
         return jsonify({"error": "Invalid username or password"}), 401
     
-    # Convert user_id to string for JWT
     access_token = create_access_token(identity=str(user['id']))
     
     return jsonify({
