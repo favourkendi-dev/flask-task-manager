@@ -1,14 +1,17 @@
 import pytest
 import app as app_module
+import os
 
 @pytest.fixture
 def client():
+    # Remove old test database if exists
+    if os.path.exists('tasks.db'):
+        os.remove('tasks.db')
+    
+    # Reinitialize database
+    app_module.init_db()
+    
     app_module.app.config['TESTING'] = True
-    
-    # Reset global state before each test
-    app_module.tasks.clear()
-    app_module.task_id_counter = 1
-    
     with app_module.app.test_client() as client:
         yield client
 
@@ -20,13 +23,17 @@ def test_hello(client):
 def test_create_task(client):
     response = client.post('/tasks', json={
         "title": "Test task",
-        "description": "Test description"
+        "description": "Test description",
+        "priority": "high",
+        "due_date": "2026-06-01"
     })
     assert response.status_code == 201
     data = response.get_json()
     assert data["title"] == "Test task"
     assert data["description"] == "Test description"
     assert data["completed"] == False
+    assert data["priority"] == "high"
+    assert data["due_date"] == "2026-06-01"
     assert data["id"] == 1
 
 def test_create_task_missing_title(client):
