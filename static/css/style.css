@@ -1,8 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Custom styles to complement Tailwind */
+/* Custom styles ONLY — Tailwind is loaded via CDN */
 .task-item {
     transition: all 0.2s ease;
 }

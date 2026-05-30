@@ -54,7 +54,7 @@ def hello():
 def frontend():
     return render_template('index.html')
 
-# ADD THIS - serves static files on Render
+# Serves static files on Render
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
