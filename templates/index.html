@@ -48,12 +48,35 @@
 
         <!-- Task Section (hidden until logged in) -->
         <div id="task-section" class="hidden">
-            <div class="flex justify-between items-center bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex justify-between items-center bg-white rounded-lg shadow-md p-4 mb-4">
                 <span id="user-display" class="text-lg font-semibold text-gray-700"></span>
                 <button onclick="logout()" 
                     class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
                     Logout
                 </button>
+            </div>
+            
+            <!-- Task Stats -->
+            <div id="task-stats" class="bg-white rounded-lg shadow-md p-3 mb-4"></div>
+            
+            <!-- Search & Filter Bar -->
+            <div class="bg-white rounded-lg shadow-md p-4 mb-4 flex flex-wrap gap-3">
+                <input type="text" id="search-input" placeholder="Search tasks..." 
+                    oninput="filterTasks()"
+                    class="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <select id="filter-priority" onchange="filterTasks()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Priorities</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+                <select id="filter-status" onchange="filterTasks()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                </select>
             </div>
 
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">

@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, render_template, send_from_directory
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
@@ -9,6 +9,7 @@ app = Flask(__name__)
 
 # JWT Configuration
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 jwt = JWTManager(app)
 
 DATABASE = 'tasks.db'

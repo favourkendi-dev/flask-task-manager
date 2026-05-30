@@ -2,6 +2,7 @@ const API_URL = window.location.origin;
 
 let token = localStorage.getItem('token');
 let currentUser = localStorage.getItem('username');
+let allTasks = [];
 
 // Check if already logged in
 if (token && currentUser) {
@@ -23,6 +24,11 @@ function showTaskSection() {
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('task-section').style.display = 'block';
     document.getElementById('user-display').textContent = 'Welcome, ' + currentUser + '!';
+}
+
+function isOverdue(dueDate) {
+    if (!dueDate) return false;
+    return new Date(dueDate) < new Date().setHours(0, 0, 0, 0);
 }
 
 async function register() {
@@ -96,7 +102,8 @@ async function loadTasks() {
         const tasks = await response.json();
         
         if (response.ok) {
-            displayTasks(tasks);
+            allTasks = tasks;
+            filterTasks();
         } else {
             alert(tasks.error || 'Failed to load tasks');
         }
@@ -105,9 +112,40 @@ async function loadTasks() {
     }
 }
 
+function filterTasks() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const priority = document.getElementById('filter-priority').value;
+    const status = document.getElementById('filter-status').value;
+    
+    let filtered = allTasks.filter(function(task) {
+        const matchesSearch = !search || 
+            task.title.toLowerCase().includes(search) || 
+            (task.description && task.description.toLowerCase().includes(search));
+        const matchesPriority = !priority || task.priority === priority;
+        const matchesStatus = !status || 
+            (status === 'completed' ? task.completed : !task.completed);
+        
+        return matchesSearch && matchesPriority && matchesStatus;
+    });
+    
+    displayTasks(filtered);
+}
+
 function displayTasks(tasks) {
     const container = document.getElementById('tasks-container');
     container.innerHTML = '';
+    
+    // Update counters
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
+    const overdue = tasks.filter(t => !t.completed && isOverdue(t.due_date)).length;
+    
+    document.getElementById('task-stats').innerHTML = 
+        '<span class="text-sm text-gray-600">' +
+        'Total: <b>' + total + '</b> | ' +
+        'Completed: <b class="text-green-600">' + completed + '</b> | ' +
+        'Overdue: <b class="text-red-600">' + overdue + '</b>' +
+        '</span>';
     
     if (tasks.length === 0) {
         container.innerHTML = '<p class="text-gray-500 text-center py-8">No tasks yet. Add one above!</p>';
@@ -115,15 +153,17 @@ function displayTasks(tasks) {
     }
     
     tasks.forEach(function(task) {
+        const overdueClass = (!task.completed && isOverdue(task.due_date)) ? 'border-red-500 border-2' : '';
         const taskDiv = document.createElement('div');
-        taskDiv.className = 'task-item priority-' + task.priority + ' bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center' + (task.completed ? ' completed' : '');
+        taskDiv.className = 'task-item priority-' + task.priority + ' bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center' + (task.completed ? ' completed' : '') + ' ' + overdueClass;
         
         const dueDateText = task.due_date ? 'Due: ' + task.due_date : 'No due date';
+        const overdueBadge = (!task.completed && isOverdue(task.due_date)) ? '<span class="bg-red-500 text-white text-xs px-2 py-1 rounded ml-2">OVERDUE</span>' : '';
         const priorityColor = task.priority === 'high' ? 'text-red-600' : task.priority === 'medium' ? 'text-yellow-600' : 'text-green-600';
         
         taskDiv.innerHTML = 
             '<div class="flex-1">' +
-                '<h3 class="text-lg font-semibold text-gray-800 mb-1">' + task.title + '</h3>' +
+                '<h3 class="text-lg font-semibold text-gray-800 mb-1">' + task.title + overdueBadge + '</h3>' +
                 '<p class="text-gray-600 text-sm mb-2">' + (task.description || 'No description') + '</p>' +
                 '<div class="flex gap-4 text-sm">' +
                     '<span class="' + priorityColor + ' font-medium capitalize">Priority: ' + task.priority + '</span>' +
