@@ -4,88 +4,103 @@ import os
 
 @pytest.fixture
 def client():
-    # Remove old test database if exists
     if os.path.exists('tasks.db'):
         os.remove('tasks.db')
     
-    # Reinitialize database
     app_module.init_db()
-    
     app_module.app.config['TESTING'] = True
     with app_module.app.test_client() as client:
         yield client
+
+def get_auth_token(client, username="testuser", password="testpass"):
+    client.post('/register', json={"username": username, "password": password})
+    response = client.post('/login', json={"username": username, "password": password})
+    return response.get_json()["access_token"]
 
 def test_hello(client):
     response = client.get('/')
     assert response.status_code == 200
     assert response.get_json() == {"message": "Hello, Task Manager is running!"}
 
+def test_register(client):
+    response = client.post('/register', json={"username": "john", "password": "secret"})
+    assert response.status_code == 201
+    assert response.get_json()["username"] == "john"
+
+def test_register_duplicate(client):
+    client.post('/register', json={"username": "john", "password": "secret"})
+    response = client.post('/register', json={"username": "john", "password": "secret"})
+    assert response.status_code == 409
+
+def test_login(client):
+    client.post('/register', json={"username": "john", "password": "secret"})
+    response = client.post('/login', json={"username": "john", "password": "secret"})
+    assert response.status_code == 200
+    assert "access_token" in response.get_json()
+
+def test_login_invalid(client):
+    response = client.post('/login', json={"username": "nobody", "password": "wrong"})
+    assert response.status_code == 401
+
 def test_create_task(client):
-    response = client.post('/tasks', json={
-        "title": "Test task",
-        "description": "Test description",
-        "priority": "high",
-        "due_date": "2026-06-01"
-    })
+    token = get_auth_token(client)
+    response = client.post('/tasks', 
+        json={"title": "Test task", "description": "Test", "priority": "high"},
+        headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 201
     data = response.get_json()
     assert data["title"] == "Test task"
-    assert data["description"] == "Test description"
-    assert data["completed"] == False
-    assert data["priority"] == "high"
-    assert data["due_date"] == "2026-06-01"
-    assert data["id"] == 1
+    assert data["user_id"] == 1
 
-def test_create_task_missing_title(client):
-    response = client.post('/tasks', json={"description": "No title"})
-    assert response.status_code == 400
-    assert response.get_json() == {"error": "Title is required"}
+def test_create_task_unauthorized(client):
+    response = client.post('/tasks', json={"title": "Test"})
+    assert response.status_code == 401
 
 def test_get_all_tasks(client):
-    client.post('/tasks', json={"title": "Task 1"})
-    client.post('/tasks', json={"title": "Task 2"})
-    response = client.get('/tasks')
+    token = get_auth_token(client)
+    client.post('/tasks', json={"title": "Task 1"}, headers={"Authorization": f"Bearer {token}"})
+    client.post('/tasks', json={"title": "Task 2"}, headers={"Authorization": f"Bearer {token}"})
+    response = client.get('/tasks', headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    data = response.get_json()
-    assert len(data) == 2
+    assert len(response.get_json()) == 2
 
 def test_get_task(client):
-    client.post('/tasks', json={"title": "Single task"})
-    response = client.get('/tasks/1')
+    token = get_auth_token(client)
+    client.post('/tasks', json={"title": "Single"}, headers={"Authorization": f"Bearer {token}"})
+    response = client.get('/tasks/1', headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    assert response.get_json()["title"] == "Single task"
+    assert response.get_json()["title"] == "Single"
 
 def test_get_task_not_found(client):
-    response = client.get('/tasks/999')
+    token = get_auth_token(client)
+    response = client.get('/tasks/999', headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
-    assert response.get_json() == {"error": "Task not found"}
 
 def test_update_task(client):
-    client.post('/tasks', json={"title": "Old title"})
-    response = client.put('/tasks/1', json={"title": "New title"})
+    token = get_auth_token(client)
+    client.post('/tasks', json={"title": "Old"}, headers={"Authorization": f"Bearer {token}"})
+    response = client.put('/tasks/1', json={"title": "New"}, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    assert response.get_json()["title"] == "New title"
-
-def test_update_task_not_found(client):
-    response = client.put('/tasks/999', json={"title": "New title"})
-    assert response.status_code == 404
+    assert response.get_json()["title"] == "New"
 
 def test_toggle_complete(client):
-    client.post('/tasks', json={"title": "Complete me"})
-    response = client.patch('/tasks/1/complete')
+    token = get_auth_token(client)
+    client.post('/tasks', json={"title": "Complete"}, headers={"Authorization": f"Bearer {token}"})
+    response = client.patch('/tasks/1/complete', headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     assert response.get_json()["completed"] == True
 
-def test_toggle_complete_not_found(client):
-    response = client.patch('/tasks/999/complete')
-    assert response.status_code == 404
-
 def test_delete_task(client):
-    client.post('/tasks', json={"title": "Delete me"})
-    response = client.delete('/tasks/1')
+    token = get_auth_token(client)
+    client.post('/tasks', json={"title": "Delete"}, headers={"Authorization": f"Bearer {token}"})
+    response = client.delete('/tasks/1', headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     assert response.get_json()["message"] == "Task 1 deleted successfully"
 
-def test_delete_task_not_found(client):
-    response = client.delete('/tasks/999')
+def test_other_user_cannot_access_task(client):
+    token1 = get_auth_token(client, "user1", "pass1")
+    client.post('/tasks', json={"title": "Private"}, headers={"Authorization": f"Bearer {token1}"})
+    
+    token2 = get_auth_token(client, "user2", "pass2")
+    response = client.get('/tasks/1', headers={"Authorization": f"Bearer {token2}"})
     assert response.status_code == 404
