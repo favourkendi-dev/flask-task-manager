@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request, render_template, send_from_directory
+from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,6 +7,7 @@ import os
 import sqlite3
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 
 # JWT Configuration
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')
