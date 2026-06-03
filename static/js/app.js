@@ -115,6 +115,7 @@ async function loadTasks() {
 function filterTasks() {
     const search = document.getElementById('search-input').value.toLowerCase();
     const priority = document.getElementById('filter-priority').value;
+    const category = document.getElementById('filter-category').value;
     const status = document.getElementById('filter-status').value;
     
     let filtered = allTasks.filter(function(task) {
@@ -122,14 +123,24 @@ function filterTasks() {
             task.title.toLowerCase().includes(search) || 
             (task.description && task.description.toLowerCase().includes(search));
         const matchesPriority = !priority || task.priority === priority;
+        const matchesCategory = !category || task.category === category;
         const matchesStatus = !status || 
             (status === 'completed' ? task.completed : !task.completed);
         
-        return matchesSearch && matchesPriority && matchesStatus;
+        return matchesSearch && matchesPriority && matchesCategory && matchesStatus;
     });
     
     displayTasks(filtered);
 }
+
+// Category badge colors
+const categoryColors = {
+    work: 'bg-blue-100 text-blue-800 border-blue-200',
+    personal: 'bg-green-100 text-green-800 border-green-200',
+    health: 'bg-red-100 text-red-800 border-red-200',
+    finance: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    urgent: 'bg-orange-100 text-orange-800 border-orange-200'
+};
 
 function displayTasks(tasks) {
     const container = document.getElementById('tasks-container');
@@ -161,9 +172,15 @@ function displayTasks(tasks) {
         const overdueBadge = (!task.completed && isOverdue(task.due_date)) ? '<span class="bg-red-500 text-white text-xs px-2 py-1 rounded ml-2">OVERDUE</span>' : '';
         const priorityColor = task.priority === 'high' ? 'text-red-600' : task.priority === 'medium' ? 'text-yellow-600' : 'text-green-600';
         
+        // NEW: Category badge
+        const catBadge = '<span class="text-xs px-2 py-1 rounded border ' + (categoryColors[task.category] || 'bg-gray-100 text-gray-800 border-gray-200') + ' capitalize">' + task.category + '</span>';
+        
         taskDiv.innerHTML = 
             '<div class="flex-1">' +
-                '<h3 class="text-lg font-semibold text-gray-800 mb-1">' + task.title + overdueBadge + '</h3>' +
+                '<div class="flex items-center gap-2 mb-1">' +
+                    '<h3 class="text-lg font-semibold text-gray-800">' + task.title + overdueBadge + '</h3>' +
+                    catBadge +
+                '</div>' +
                 '<p class="text-gray-600 text-sm mb-2">' + (task.description || 'No description') + '</p>' +
                 '<div class="flex gap-4 text-sm">' +
                     '<span class="' + priorityColor + ' font-medium capitalize">Priority: ' + task.priority + '</span>' +
@@ -189,6 +206,7 @@ async function addTask() {
     const title = document.getElementById('task-title').value;
     const description = document.getElementById('task-description').value;
     const priority = document.getElementById('task-priority').value;
+    const category = document.getElementById('task-category').value;
     const dueDate = document.getElementById('task-due-date').value;
     
     if (!title) {
@@ -207,6 +225,7 @@ async function addTask() {
                 title: title,
                 description: description,
                 priority: priority,
+                category: category,
                 due_date: dueDate || null
             })
         });

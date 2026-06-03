@@ -14,7 +14,9 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-secret-key-
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 jwt = JWTManager(app)
 
-DATABASE = 'tasks.db'
+# FIX #2: Use absolute path for database
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'tasks.db')
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -39,12 +41,16 @@ def init_db():
                 description TEXT,
                 completed INTEGER DEFAULT 0,
                 priority TEXT DEFAULT 'medium',
+                category TEXT DEFAULT 'personal',
                 due_date TEXT,
                 created_at TEXT,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         conn.commit()
+
+# FIX #1: Initialize DB immediately when module loads
+init_db()
 
 def get_current_user_id():
     return int(get_jwt_identity())
@@ -57,7 +63,6 @@ def hello():
 def frontend():
     return render_template('index.html')
 
-# Serves static files on Render
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
@@ -129,13 +134,14 @@ def create_task():
     title = data.get("title")
     description = data.get("description", "")
     priority = data.get("priority", "medium")
+    category = data.get("category", "personal")
     due_date = data.get("due_date", None)
     created_at = datetime.now().isoformat()
     
     with get_db() as conn:
         cursor = conn.execute(
-            "INSERT INTO tasks (user_id, title, description, completed, priority, due_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, title, description, 0, priority, due_date, created_at)
+            "INSERT INTO tasks (user_id, title, description, completed, priority, category, due_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, title, description, 0, priority, category, due_date, created_at)
         )
         task_id = cursor.lastrowid
         conn.commit()
@@ -147,6 +153,7 @@ def create_task():
         "description": description,
         "completed": False,
         "priority": priority,
+        "category": category,
         "due_date": due_date,
         "created_at": created_at
     }), 201
@@ -168,6 +175,7 @@ def get_all_tasks():
             "description": row["description"],
             "completed": bool(row["completed"]),
             "priority": row["priority"],
+            "category": row["category"],
             "due_date": row["due_date"],
             "created_at": row["created_at"]
         })
@@ -192,6 +200,7 @@ def get_task(task_id):
         "description": row["description"],
         "completed": bool(row["completed"]),
         "priority": row["priority"],
+        "category": row["category"],
         "due_date": row["due_date"],
         "created_at": row["created_at"]
     })
@@ -214,12 +223,13 @@ def update_task(task_id):
     title = data.get("title", row["title"])
     description = data.get("description", row["description"])
     priority = data.get("priority", row["priority"])
+    category = data.get("category", row["category"])
     due_date = data.get("due_date", row["due_date"])
     
     with get_db() as conn:
         conn.execute(
-            "UPDATE tasks SET title = ?, description = ?, priority = ?, due_date = ? WHERE id = ? AND user_id = ?",
-            (title, description, priority, due_date, task_id, user_id)
+            "UPDATE tasks SET title = ?, description = ?, priority = ?, category = ?, due_date = ? WHERE id = ? AND user_id = ?",
+            (title, description, priority, category, due_date, task_id, user_id)
         )
         conn.commit()
     
@@ -230,6 +240,7 @@ def update_task(task_id):
         "description": description,
         "completed": bool(row["completed"]),
         "priority": priority,
+        "category": category,
         "due_date": due_date,
         "created_at": row["created_at"]
     })
@@ -270,11 +281,12 @@ def toggle_complete(task_id):
         "description": row["description"],
         "completed": new_status,
         "priority": row["priority"],
+        "category": row["category"],
         "due_date": row["due_date"],
         "created_at": row["created_at"]
     })
 
+
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port)
